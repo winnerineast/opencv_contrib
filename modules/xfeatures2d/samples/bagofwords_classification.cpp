@@ -1,8 +1,8 @@
 #include <iostream>
+#include "opencv2/opencv_modules.hpp"
 
 #ifdef HAVE_OPENCV_ML
 
-#include "opencv2/opencv_modules.hpp"
 #include "opencv2/imgcodecs.hpp"
 #include "opencv2/highgui.hpp"
 #include "opencv2/imgproc.hpp"
@@ -14,7 +14,7 @@
 #include <memory>
 #include <functional>
 
-#if defined WIN32 || defined _WIN32
+#ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #undef min
