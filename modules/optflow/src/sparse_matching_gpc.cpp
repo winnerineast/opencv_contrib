@@ -40,13 +40,16 @@
  //
  //M*/
 
+#include "precomp.hpp"
 #include "opencv2/core/core_c.h"
 #include "opencv2/core/private.hpp"
 #include "opencv2/flann/miniflann.hpp"
 #include "opencv2/imgcodecs.hpp"
-#include "precomp.hpp"
 #include "opencl_kernels_optflow.hpp"
 #include "opencv2/core/hal/intrin.hpp"
+#ifdef CV_CXX11
+#include <random>  // std::mt19937
+#endif
 
 /* Disable "from double to float" and "from size_t to int" warnings.
  * Fixing these would make the code look ugly by introducing explicit cast all around.
@@ -246,7 +249,7 @@ public:
   ParallelDCTFiller( const Size &_sz, const Mat *_imgCh, std::vector< GPCPatchDescriptor > *_descr )
       : sz( _sz ), imgCh( _imgCh ), descr( _descr ){};
 
-  void operator()( const Range &range ) const
+  void operator()( const Range &range ) const CV_OVERRIDE
   {
     for ( int i = range.start; i < range.end; ++i )
     {
@@ -275,7 +278,7 @@ bool ocl_getAllDCTDescriptorsForImage( const Mat *imgCh, std::vector< GPCPatchDe
            (int)globSize[0], (int)globSize[1], (int)patchRadius )
     .run( 2, globSize, 0, true ) == false )
     return false;
-  Mat cpuOut = out.getMat( 0 );
+  Mat cpuOut = out.getMat( ACCESS_READ );
   for ( int i = 0; i + 2 * patchRadius < sz.height; ++i )
     for ( int j = 0; j + 2 * patchRadius < sz.width; ++j )
       descr.push_back( *cpuOut.ptr< GPCPatchDescriptor >( i * globSize[1] + j ) );
@@ -289,7 +292,7 @@ void getAllDCTDescriptorsForImage( const Mat *imgCh, std::vector< GPCPatchDescri
   const Size sz = imgCh[0].size();
   descr.reserve( ( sz.height - 2 * patchRadius ) * ( sz.width - 2 * patchRadius ) );
 
-  (void)mp; // Fix unused parameter warning in case OpenCL is not available
+  CV_UNUSED(mp); // Fix unused parameter warning in case OpenCL is not available
   CV_OCL_RUN( mp.useOpenCL, ocl_getAllDCTDescriptorsForImage( imgCh, descr ) )
 
   descr.resize( ( sz.height - 2 * patchRadius ) * ( sz.width - 2 * patchRadius ) );
@@ -309,7 +312,7 @@ public:
   ParallelWHTFiller( const Size &_sz, const Mat *_imgChInt, std::vector< GPCPatchDescriptor > *_descr )
       : sz( _sz ), imgChInt( _imgChInt ), descr( _descr ){};
 
-  void operator()( const Range &range ) const
+  void operator()( const Range &range ) const CV_OVERRIDE
   {
     for ( int i = range.start; i < range.end; ++i )
     {
@@ -402,7 +405,12 @@ void getTrainingSamples( const Mat &from, const Mat &to, const Mat &gt, GPCSampl
                                                             // with a small displacement and train to better distinguish hard pairs.
   std::nth_element( mag.begin(), mag.begin() + n, mag.end() );
   mag.resize( n );
+#ifdef CV_CXX11
+  std::mt19937 std_rng(cv::theRNG()());
+  std::shuffle(mag.begin(), mag.end(), std_rng);
+#else
   std::random_shuffle( mag.begin(), mag.end() );
+#endif
   n /= patchRadius;
   mag.resize( n );
 
@@ -759,7 +767,7 @@ void GPCDetails::dropOutliers( std::vector< std::pair< Point2i, Point2i > > &cor
 
 void write( FileStorage &fs, const String &name, const optflow::GPCTree::Node &node )
 {
-  cv::internal::WriteStructContext ws( fs, name, CV_NODE_SEQ + CV_NODE_FLOW );
+  cv::internal::WriteStructContext ws( fs, name, FileNode::SEQ + FileNode::FLOW );
   for ( unsigned i = 0; i < optflow::GPCPatchDescriptor::nFeatures; ++i )
     write( fs, node.coef[i] );
   write( fs, node.rhs );
