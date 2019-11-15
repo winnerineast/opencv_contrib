@@ -238,6 +238,20 @@ struct Application : public OgreBites::ApplicationContext, public OgreBites::Inp
         return ret;
     }
 
+#if OGRE_VERSION < ((1 << 16) | (12 << 8) | 3)
+    void destroyWindow(const Ogre::String& name)
+    {
+        for (auto it = mWindows.begin(); it != mWindows.end(); ++it)
+        {
+            if (it->render->getName() != name)
+                continue;
+            mRoot->destroyRenderTarget(it->render);
+            mWindows.erase(it);
+            return;
+        }
+    }
+#endif
+
     size_t numWindows() const { return mWindows.size(); }
 
     void locateResources() CV_OVERRIDE
@@ -288,10 +302,10 @@ public:
     {
         if (!app->sceneMgr)
         {
-            flags |= SCENE_SEPERATE;
+            flags |= SCENE_SEPARATE;
         }
 
-        if (flags & SCENE_SEPERATE)
+        if (flags & SCENE_SEPARATE)
         {
             sceneMgr = root->createSceneManager("DefaultSceneManager", title);
             RTShader::ShaderGenerator& shadergen = RTShader::ShaderGenerator::getSingleton();
@@ -348,7 +362,7 @@ public:
 
     ~WindowSceneImpl()
     {
-        if (flags & SCENE_SEPERATE)
+        if (flags & SCENE_SEPARATE)
         {
             TextureManager& texMgr =  TextureManager::getSingleton();
 
@@ -364,12 +378,16 @@ public:
             }
         }
 
-        if(_app->sceneMgr == sceneMgr && (flags & SCENE_SEPERATE))
+        if(_app->sceneMgr == sceneMgr && (flags & SCENE_SEPARATE))
         {
             // this is the root window owning the context
             CV_Assert(_app->numWindows() == 1 && "the first OVIS window must be deleted last");
             _app->closeApp();
             _app.release();
+        }
+        else
+        {
+            _app->destroyWindow(title);
         }
     }
 
@@ -446,6 +464,9 @@ public:
         case PF_BYTE_RGBA:
             dst_type = CV_8UC4;
             break;
+#if OGRE_VERSION >= ((1 << 16) | (12 << 8) | 3)
+        case PF_DEPTH32F:
+#endif
         case PF_FLOAT32_R:
             dst_type = CV_32F;
             break;
