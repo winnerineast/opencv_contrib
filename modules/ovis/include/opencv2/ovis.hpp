@@ -25,7 +25,9 @@ enum SceneSettings
     /// draw coordinate system crosses for debugging
     SCENE_SHOW_CS_CROSS = 4,
     /// Apply anti-aliasing. The first window determines the setting for all windows.
-    SCENE_AA = 8
+    SCENE_AA = 8,
+    /// Render off-screen without a window. Allows separate AA setting. Requires manual update via @ref WindowScene::update
+    SCENE_OFFSCREEN = 16
 };
 
 enum MaterialProperty
@@ -34,6 +36,7 @@ enum MaterialProperty
     MATERIAL_LINE_WIDTH,
     MATERIAL_OPACITY,
     MATERIAL_EMISSIVE,
+    MATERIAL_DIFFUSE,
     MATERIAL_TEXTURE0,
     MATERIAL_TEXTURE = MATERIAL_TEXTURE0,
     MATERIAL_TEXTURE1,
@@ -106,7 +109,8 @@ public:
     CV_WRAP virtual void setEntityProperty(const String& name, int prop, const Scalar& value) = 0;
 
     /// @overload
-    CV_WRAP virtual void setEntityProperty(const String& name, int prop, const String& value) = 0;
+    CV_WRAP virtual void setEntityProperty(const String& name, int prop, const String& value,
+                                           int subEntityIdx = -1) = 0;
 
     /**
      * get the property of an entity
@@ -276,6 +280,10 @@ public:
     CV_WRAP virtual void setCameraIntrinsics(InputArray K, const Size& imsize,
                                              float zNear = -1,
                                              float zFar = -1) = 0;
+    /**
+     * render this window, but do not swap buffers. Automatically called by @ref ovis::waitKey
+     */
+    CV_WRAP virtual void update() = 0;
 };
 
 /**
